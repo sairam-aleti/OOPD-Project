@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+bin/
+*.o
+*.obj
+*.exe
+*.out
+
+# IDE
+.vscode/
+*.user
+.idea/
+
+# Mac
+.DS_Store
+
+# Compiled binaries
+*.app
+*.dSYM
+
+# Debug
+*.ilk
+*.pdb
