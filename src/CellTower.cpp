@@ -3,12 +3,13 @@
  */
 
 #include "../include/CellTower.h"
-#include "../include/Basicio.h"
+#include "../include/basicIO.h"
 
 CellTower::CellTower(int towerId, const CommunicationProtocol* protocol)
     : towerId_(towerId), protocol_(protocol), deviceCount_(0) {
     if (!protocol_) {
-        basicio_writeln("Error: Protocol cannot be null");
+        io.outputstring("Error: Protocol cannot be null");
+        io.terminate();
         return;
     }
     // Initialize frequency allocation
@@ -50,7 +51,8 @@ UserDevice* CellTower::getDevice(int index) const {
 
 bool CellTower::allocateFrequency(UserDevice* device) {
     if (!device) {
-        basicio_writeln("Error: Device cannot be null");
+        io.outputstring("Error: Device cannot be null");
+        io.terminate();
         return false;
     }
 
@@ -68,19 +70,22 @@ bool CellTower::allocateFrequency(UserDevice* device) {
     }
     
     // No frequency available
-    basicio_writeln("Error: No available frequency channels for device");
+    io.outputstring("Error: No available frequency channels for device");
+    io.terminate();
     return false;
 }
 
 bool CellTower::addUserDevice(UserDevice* device) {
     if (!device) {
-        basicio_writeln("Error: Device cannot be null");
+        io.outputstring("Error: Device cannot be null");
+        io.terminate();
         return false;
     }
 
     // Check if max devices exceeded
     if (deviceCount_ >= MAX_DEVICES || deviceCount_ >= protocol_->calculateMaxUsers()) {
-        basicio_writeln("Error: Tower at capacity: cannot add more devices");
+        io.outputstring("Error: Tower at capacity: cannot add more devices");
+        io.terminate();
         return false;
     }
 

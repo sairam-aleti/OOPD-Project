@@ -3,7 +3,7 @@
  */
 
 #include "../include/CellularCore.h"
-#include "../include/Basicio.h"
+#include "../include/basicIO.h"
 
 CellularCore::CellularCore(int coreId)
     : coreId_(coreId), towerCount_(0), messageQueueSize_(0), totalMessagesProcessed_(0) {
@@ -25,11 +25,13 @@ CellularCore::~CellularCore() {
 
 bool CellularCore::addCellTower(CellTower* tower) {
     if (!tower) {
-        basicio_writeln("Error: Tower cannot be null");
+        io.outputstring("Error: Tower cannot be null");
+        io.terminate();
         return false;
     }
     if (towerCount_ >= MAX_TOWERS) {
-        basicio_writeln("Error: Core at capacity: cannot add more towers");
+        io.outputstring("Error: Core at capacity: cannot add more towers");
+        io.terminate();
         return false;
     }
     towers_[towerCount_] = tower;
@@ -48,7 +50,8 @@ CellTower* CellularCore::getCellTower(int towerId) const {
 
 bool CellularCore::generateMessage(int fromDeviceId, int toTowerId, bool isVoice, const char* payload) {
     if (messageQueueSize_ >= MAX_MESSAGES) {
-        basicio_writeln("Error: Message queue full");
+        io.outputstring("Error: Message queue full");
+        io.terminate();
         return false;
     }
     
@@ -75,7 +78,8 @@ bool CellularCore::generateMessage(int fromDeviceId, int toTowerId, bool isVoice
 
 void CellularCore::processMessages() {
     if (messageQueueSize_ == 0) {
-        basicio_writeln("[Core] No messages to process.");
+        io.outputstring("[Core] No messages to process.");
+        io.terminate();
         return;
     }
 
@@ -85,35 +89,39 @@ void CellularCore::processMessages() {
         try {
             CellTower* tower = getCellTower(msg.toTowerId);
             if (!tower) {
-                basicio_write("[Core] Message ");
-                basicio_write_int(msg.messageId);
-                basicio_writeln(" dropped: destination tower not found.");
+                io.outputstring("[Core] Message ");
+                io.outputint(msg.messageId);
+                io.outputstring(" dropped: destination tower not found.");
+                io.terminate();
                 continue;
             }
 
             totalMessagesProcessed_++;
 
-            // Output using Basicio functions only
-            basicio_write("[Core] Processing message ");
-            basicio_write_int(msg.messageId);
-            basicio_write(" -> Tower ");
-            basicio_write_int(msg.toTowerId);
-            basicio_write(" | From Device ");
-            basicio_write_int(msg.fromDeviceId);
-            basicio_write(" | Type: ");
-            basicio_writeln(msg.isVoice ? "VOICE" : "DATA");
+            // Output using basicIO functions only
+            io.outputstring("[Core] Processing message ");
+            io.outputint(msg.messageId);
+            io.outputstring(" -> Tower ");
+            io.outputint(msg.toTowerId);
+            io.outputstring(" | From Device ");
+            io.outputint(msg.fromDeviceId);
+            io.outputstring(" | Type: ");
+            io.outputstring(msg.isVoice ? "VOICE" : "DATA");
+            io.terminate();
 
             // Calculate protocol overhead
             const CommunicationProtocol* proto = tower->getProtocol();
             if (proto) {
                 int overhead = proto->calculateOverhead(1);
-                basicio_write("[Core] Protocol overhead estimate: ");
-                basicio_write_int(overhead);
-                basicio_writeln(" messages");
+                io.outputstring("[Core] Protocol overhead estimate: ");
+                io.outputint(overhead);
+                io.outputstring(" messages");
+                io.terminate();
             }
 
         } catch (...) {
-            basicio_writeln("[Core] Exception while processing message.");
+            io.outputstring("[Core] Exception while processing message.");
+            io.terminate();
         }
     }
     

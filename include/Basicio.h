@@ -1,25 +1,23 @@
-/* Basicio.h
- * Minimal Basic I/O wrapper used by the simulator.
- * All project code must use the functions declared here for I/O.
- */
-#ifndef BASICIO_H
-#define BASICIO_H
+#pragma once
 
-extern "C" {
-    /** Read an integer from stdin. Blocks until a valid integer is read. */
-    int basicio_read_int();
+#ifndef BASIC_IO_H
+#define BASIC_IO_H
 
-    /** Read a line (up to maxLen-1 chars) into buffer. Null-terminates. */
-    void basicio_read_line(char* buffer, int maxLen);
+class basicIO {
+public:
+    void activateInput();
+    int inputint();
+    const char* inputstring();
+    void inputstring(char* buffer, int size);
+    void outputint(int value);
+    void outputstring(const char* text);
+    void terminate();
+    void errorstring(const char* text);
+    void errorint(int number);
+    
+};
 
-    /** Write a C-string to stdout (no newline). */
-    void basicio_write(const char* s);
+extern basicIO io; 
 
-    /** Write a C-string to stdout followed by newline. */
-    void basicio_writeln(const char* s);
 
-    /** Write an integer to stdout. */
-    void basicio_write_int(int x);
-}
-
-#endif // BASICIO_H
+#endif
