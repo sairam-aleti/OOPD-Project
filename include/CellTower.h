@@ -7,23 +7,22 @@
 
 #include "CommunicationProtocol.h"
 #include "UserDevice.h"
-#include <memory>
-#include <vector>
-#include <map>
 
 /**
  * @brief Represents a cellular tower managing user devices and frequency allocation.
  *
- * Each tower uses a specific communication protocol and manages a collection of
- * connected user devices. It allocates frequencies and tracks users per channel,
- * enforcing capacity limits based on protocol specifications.
+ * Each tower uses a specific communication protocol and manages a fixed-size collection
+ * of connected user devices. It allocates frequencies and tracks users per channel.
  */
 class CellTower {
 private:
-    int towerId_;                                      ///< Unique tower identifier
-    std::shared_ptr<CommunicationProtocol> protocol_; ///< Protocol used by this tower
-    std::vector<std::shared_ptr<UserDevice>> devices_; ///< Connected devices
-    std::map<int, std::vector<int>> frequencyAllocation_; ///< Maps frequency -> device IDs
+    static constexpr int MAX_DEVICES = 20000;
+    
+    int towerId_;
+    const CommunicationProtocol* protocol_;
+    UserDevice* devices_[MAX_DEVICES];
+    int deviceCount_;
+    int frequencyAllocation_[1001]; // frequency -> count of devices (index 0-1000 kHz)
 
     /**
      * @brief Check if a frequency channel is at capacity.
@@ -36,22 +35,22 @@ public:
     /**
      * @brief Construct a new CellTower.
      * @param towerId Unique tower identifier
-     * @param protocol Shared pointer to communication protocol
+     * @param protocol Pointer to communication protocol (not owned by tower)
      */
-    CellTower(int towerId, std::shared_ptr<CommunicationProtocol> protocol);
+    CellTower(int towerId, const CommunicationProtocol* protocol);
 
     /**
-     * @brief Destructor.
+     * @brief Destructor. Cleans up allocated devices.
      */
-    ~CellTower() = default;
+    ~CellTower();
 
     // Prevent copying
     CellTower(const CellTower&) = delete;
     CellTower& operator=(const CellTower&) = delete;
 
-    // Allow move semantics
-    CellTower(CellTower&&) = default;
-    CellTower& operator=(CellTower&&) = default;
+    // Prevent moving (due to raw pointers)
+    CellTower(CellTower&&) = delete;
+    CellTower& operator=(CellTower&&) = delete;
 
     // Getters
     /**
@@ -64,13 +63,13 @@ public:
      * @brief Get the communication protocol used.
      * @return Const pointer to the protocol
      */
-    const CommunicationProtocol* getProtocol() const { return protocol_.get(); }
+    const CommunicationProtocol* getProtocol() const { return protocol_; }
 
     /**
      * @brief Get number of connected devices.
      * @return Count of devices
      */
-    int getDeviceCount() const { return devices_.size(); }
+    int getDeviceCount() const { return deviceCount_; }
 
     /**
      * @brief Get number of users on a specific frequency.
@@ -80,21 +79,20 @@ public:
     int getUsersOnFrequency(int frequency) const;
 
     /**
-     * @brief Get all connected devices.
-     * @return Reference to vector of device pointers
+     * @brief Get device by index.
+     * @param index Device index (0 to getDeviceCount()-1)
+     * @return Pointer to device or nullptr if out of range
      */
-    const std::vector<std::shared_ptr<UserDevice>>& getDevices() const { 
-        return devices_; 
-    }
+    UserDevice* getDevice(int index) const;
 
     // Device management
     /**
      * @brief Add a new user device to the tower.
      * Automatically allocates a suitable frequency.
-     * @param device Shared pointer to user device
-     * @throw std::runtime_error if tower is at capacity or allocation fails
+     * @param device Pointer to user device
+     * @return true if added successfully, false if tower at capacity or allocation fails
      */
-    void addUserDevice(std::shared_ptr<UserDevice> device);
+    bool addUserDevice(UserDevice* device);
 
     /**
      * @brief Remove a user device from the tower.
@@ -106,15 +104,9 @@ public:
     /**
      * @brief Allocate a suitable frequency for a device.
      * @param device User device to allocate frequency for
-     * @throw std::runtime_error if no available frequency
+     * @return true if allocation successful, false if no available frequency
      */
-    void allocateFrequency(std::shared_ptr<UserDevice> device);
-
-    /**
-     * @brief Get formatted tower status information.
-     * @return String describing tower ID, protocol, device count, capacity
-     */
-    std::string getTowerStatus() const;
+    bool allocateFrequency(UserDevice* device);
 };
 
 #endif // CELL_TOWER_H

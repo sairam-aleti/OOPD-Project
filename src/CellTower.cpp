@@ -3,103 +3,119 @@
  */
 
 #include "../include/CellTower.h"
-#include <stdexcept>
-#include <sstream>
-#include <algorithm>
+#include "../include/Basicio.h"
 
-CellTower::CellTower(int towerId, std::shared_ptr<CommunicationProtocol> protocol)
-    : towerId_(towerId), protocol_(protocol) {
+CellTower::CellTower(int towerId, const CommunicationProtocol* protocol)
+    : towerId_(towerId), protocol_(protocol), deviceCount_(0) {
     if (!protocol_) {
-        throw std::invalid_argument("Protocol cannot be null");
+        basicio_writeln("Error: Protocol cannot be null");
+        return;
+    }
+    // Initialize frequency allocation
+    for (int i = 0; i <= 1000; ++i) {
+        frequencyAllocation_[i] = 0;
+    }
+    // Initialize device pointers
+    for (int i = 0; i < MAX_DEVICES; ++i) {
+        devices_[i] = nullptr;
+    }
+}
+
+CellTower::~CellTower() {
+    // Delete all allocated devices
+    for (int i = 0; i < deviceCount_; ++i) {
+        if (devices_[i]) {
+            delete devices_[i];
+            devices_[i] = nullptr;
+        }
     }
 }
 
 bool CellTower::isFrequencyAtCapacity(int frequency) const {
-    auto it = frequencyAllocation_.find(frequency);
-    if (it == frequencyAllocation_.end()) {
-        return false; // Frequency not used yet
-    }
-    int usersOnFreq = it->second.size();
+    if (frequency < 0 || frequency > 1000) return true;
+    int usersOnFreq = frequencyAllocation_[frequency];
     int capacity = protocol_->getUsersPerChannel();
     return usersOnFreq >= capacity;
 }
 
 int CellTower::getUsersOnFrequency(int frequency) const {
-    auto it = frequencyAllocation_.find(frequency);
-    if (it == frequencyAllocation_.end()) {
-        return 0;
-    }
-    return it->second.size();
+    if (frequency < 0 || frequency > 1000) return 0;
+    return frequencyAllocation_[frequency];
 }
 
-void CellTower::allocateFrequency(std::shared_ptr<UserDevice> device) {
+UserDevice* CellTower::getDevice(int index) const {
+    if (index < 0 || index >= deviceCount_) return nullptr;
+    return devices_[index];
+}
+
+bool CellTower::allocateFrequency(UserDevice* device) {
     if (!device) {
-        throw std::invalid_argument("Device cannot be null");
+        basicio_writeln("Error: Device cannot be null");
+        return false;
     }
 
     // Get available frequencies from protocol
-    auto channels = protocol_->getFrequencyChannels();
+    int channelCount = protocol_->getChannelCount();
     
     // Find first frequency with available capacity
-    for (int freq : channels) {
-        if (!isFrequencyAtCapacity(freq)) {
+    for (int i = 0; i < channelCount; ++i) {
+        int freq = protocol_->getFrequencyChannel(i);
+        if (freq >= 0 && freq <= 1000 && !isFrequencyAtCapacity(freq)) {
             device->setAssignedFrequency(freq);
-            frequencyAllocation_[freq].push_back(device->getDeviceId());
-            return;
+            frequencyAllocation_[freq]++;
+            return true;
         }
     }
     
     // No frequency available
-    throw std::runtime_error("No available frequency channels for device");
+    basicio_writeln("Error: No available frequency channels for device");
+    return false;
 }
 
-void CellTower::addUserDevice(std::shared_ptr<UserDevice> device) {
+bool CellTower::addUserDevice(UserDevice* device) {
     if (!device) {
-        throw std::invalid_argument("Device cannot be null");
+        basicio_writeln("Error: Device cannot be null");
+        return false;
     }
 
-    // Check if max users exceeded
-    if (devices_.size() >= static_cast<size_t>(protocol_->calculateMaxUsers())) {
-        throw std::runtime_error("Tower at capacity: cannot add more devices");
+    // Check if max devices exceeded
+    if (deviceCount_ >= MAX_DEVICES || deviceCount_ >= protocol_->calculateMaxUsers()) {
+        basicio_writeln("Error: Tower at capacity: cannot add more devices");
+        return false;
     }
 
     // Allocate frequency
-    allocateFrequency(device);
+    if (!allocateFrequency(device)) {
+        return false;
+    }
 
     // Add device to tower
-    devices_.push_back(device);
+    devices_[deviceCount_] = device;
+    deviceCount_++;
     device->setConnected(true);
-}
-
-bool CellTower::removeUserDevice(int deviceId) {
-    auto it = std::find_if(devices_.begin(), devices_.end(),
-        [deviceId](const std::shared_ptr<UserDevice>& dev) {
-            return dev->getDeviceId() == deviceId;
-        });
-    
-    if (it == devices_.end()) {
-        return false; // Device not found
-    }
-
-    // Remove from frequency allocation
-    int freq = (*it)->getAssignedFrequency();
-    auto& freqDevices = frequencyAllocation_[freq];
-    auto freqIt = std::find(freqDevices.begin(), freqDevices.end(), deviceId);
-    if (freqIt != freqDevices.end()) {
-        freqDevices.erase(freqIt);
-    }
-
-    // Mark disconnected and remove from devices list
-    (*it)->setConnected(false);
-    devices_.erase(it);
     return true;
 }
 
-std::string CellTower::getTowerStatus() const {
-    std::ostringstream oss;
-    oss << "Tower ID: " << towerId_
-        << " | Protocol: " << protocol_->getName()
-        << " | Connected Devices: " << devices_.size()
-        << " | Max Capacity: " << protocol_->calculateMaxUsers();
-    return oss.str();
+bool CellTower::removeUserDevice(int deviceId) {
+    for (int i = 0; i < deviceCount_; ++i) {
+        if (devices_[i] && devices_[i]->getDeviceId() == deviceId) {
+            // Remove from frequency allocation
+            int freq = devices_[i]->getAssignedFrequency();
+            if (freq >= 0 && freq <= 1000) {
+                frequencyAllocation_[freq]--;
+            }
+
+            // Mark disconnected
+            devices_[i]->setConnected(false);
+
+            // Shift remaining devices
+            for (int j = i; j < deviceCount_ - 1; ++j) {
+                devices_[j] = devices_[j + 1];
+            }
+            devices_[deviceCount_ - 1] = nullptr;
+            deviceCount_--;
+            return true;
+        }
+    }
+    return false; // Device not found
 }

@@ -6,12 +6,6 @@
 #ifndef CELLULAR_CORE_H
 #define CELLULAR_CORE_H
 
-#include <memory>
-#include <map>
-#include <vector>
-#include <string>
-#include <mutex>
-
 #include "CellTower.h"
 
 /**
@@ -22,23 +16,26 @@ struct Message {
     int fromDeviceId;    ///< Origin device ID
     int toTowerId;       ///< Destination tower ID
     bool isVoice;        ///< True if voice (circuit), false if data (packet)
-    std::string payload; ///< Message payload (informational)
+    char payload[256];   ///< Message payload
 };
 
 /**
  * @brief Central network coordinator class.
  *
- * The CellularCore manages multiple `CellTower` instances, a message queue,
- * and statistics such as total messages processed. All public methods are
- * exception-safe and use smart pointers for ownership.
+ * The CellularCore manages multiple `CellTower` instances, a fixed-size
+ * message queue, and statistics such as total messages processed.
  */
 class CellularCore {
 private:
+    static constexpr int MAX_TOWERS = 100;
+    static constexpr int MAX_MESSAGES = 10000;
+    
     int coreId_;
-    std::map<int, std::shared_ptr<CellTower>> towers_; ///< towerId -> tower
-    std::vector<Message> messageQueue_;                 ///< simple FIFO queue
-    long long totalMessagesProcessed_ = 0;
-    mutable std::mutex queueMutex_;
+    CellTower* towers_[MAX_TOWERS];
+    int towerCount_;
+    Message messageQueue_[MAX_MESSAGES];
+    int messageQueueSize_;
+    long long totalMessagesProcessed_;
 
 public:
     /**
@@ -47,38 +44,42 @@ public:
      */
     CellularCore(int coreId);
 
-    ~CellularCore() = default;
+    /**
+     * @brief Destructor. Cleans up towers.
+     */
+    ~CellularCore();
 
     // Non-copyable
     CellularCore(const CellularCore&) = delete;
     CellularCore& operator=(const CellularCore&) = delete;
 
-    // Movable
-    CellularCore(CellularCore&&) = default;
-    CellularCore& operator=(CellularCore&&) = default;
+    // Non-movable
+    CellularCore(CellularCore&&) = delete;
+    CellularCore& operator=(CellularCore&&) = delete;
 
     /**
      * @brief Add a new cell tower to the core.
-     * @param tower Shared pointer to the tower to add
-     * @throw std::invalid_argument if tower is null or already exists
+     * @param tower Pointer to the tower to add
+     * @return true if added, false if tower is null or core at capacity
      */
-    void addCellTower(std::shared_ptr<CellTower> tower);
+    bool addCellTower(CellTower* tower);
 
     /**
      * @brief Retrieve a tower by ID.
      * @param towerId Identifier of the tower
-     * @return shared_ptr<CellTower> or nullptr if not found
+     * @return pointer to tower or nullptr if not found
      */
-    std::shared_ptr<CellTower> getCellTower(int towerId) const;
+    CellTower* getCellTower(int towerId) const;
 
     /**
      * @brief Generate and enqueue a message.
      * @param fromDeviceId Source device ID
      * @param toTowerId Destination tower ID
      * @param isVoice Type of message (voice/data)
-     * @param payload Optional payload text
+     * @param payload Optional payload text (up to 255 chars)
+     * @return true if enqueued, false if queue full
      */
-    void generateMessage(int fromDeviceId, int toTowerId, bool isVoice, const std::string& payload = "");
+    bool generateMessage(int fromDeviceId, int toTowerId, bool isVoice, const char* payload = "");
 
     /**
      * @brief Process all messages currently in the queue.
@@ -87,15 +88,14 @@ public:
     void processMessages();
 
     /**
-     * @brief Get a brief status of the network coordinated by this core.
-     * @return String describing core ID, towers, and messages processed
-     */
-    std::string getNetworkStatus() const;
-
-    /**
      * @brief Get total messages processed.
      */
     long long getTotalMessagesProcessed() const { return totalMessagesProcessed_; }
+    
+    /**
+     * @brief Get number of towers in core.
+     */
+    int getTowerCount() const { return towerCount_; }
 };
 
 #endif // CELLULAR_CORE_H

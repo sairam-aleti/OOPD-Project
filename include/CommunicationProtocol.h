@@ -5,9 +5,6 @@
 #ifndef COMMUNICATION_PROTOCOL_H
 #define COMMUNICATION_PROTOCOL_H
 
-#include <vector>
-#include <string>
-
 /**
  * @brief Abstract base class defining the interface for communication protocols.
  *
@@ -18,7 +15,7 @@ public:
     virtual ~CommunicationProtocol() = default;
 
     /// Human-readable protocol name ("2G", "3G", ...)
-    virtual std::string getName() const = 0;
+    virtual const char* getName() const = 0;
 
     /// Number of users supported per channel unit (semantics depend on protocol)
     virtual int getUsersPerChannel() const = 0;
@@ -26,8 +23,11 @@ public:
     /// Channel bandwidth in kHz
     virtual int getChannelBandwidth() const = 0;
 
-    /// Returns vector of channel centre frequencies (in kHz) managed by protocol
-    virtual std::vector<int> getFrequencyChannels() const = 0;
+    /// Returns number of frequency channels managed by protocol
+    virtual int getChannelCount() const = 0;
+
+    /// Get channel by index (0 to getChannelCount()-1)
+    virtual int getFrequencyChannel(int index) const = 0;
 
     /// Calculate maximum supported users for the whole spectrum
     virtual int calculateMaxUsers() const = 0;

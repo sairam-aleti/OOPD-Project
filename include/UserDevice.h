@@ -5,8 +5,6 @@
 #ifndef USER_DEVICE_H
 #define USER_DEVICE_H
 
-#include <string>
-
 /**
  * @enum ConnectionType
  * @brief Type of connection for a user device.
@@ -31,7 +29,7 @@ private:
 
     /**
      * @brief Validate device ID and frequency values.
-     * @throw std::invalid_argument if validation fails
+     * @throw Throws if validation fails (called from constructor/setters)
      */
     void validate() const;
 
@@ -41,7 +39,6 @@ public:
      * @param deviceId Unique device identifier (must be positive)
      * @param frequency Assigned frequency in kHz (must be positive)
      * @param type Connection type (DATA or VOICE)
-     * @throw std::invalid_argument if parameters are invalid
      */
     UserDevice(int deviceId, int frequency, ConnectionType type);
 
@@ -87,7 +84,6 @@ public:
     /**
      * @brief Set the assigned frequency.
      * @param frequency New frequency in kHz (must be positive)
-     * @throw std::invalid_argument if frequency is invalid
      */
     void setAssignedFrequency(int frequency);
 
@@ -102,12 +98,6 @@ public:
      * @param connected true to mark as connected, false to disconnect
      */
     void setConnected(bool connected) { isConnected_ = connected; }
-
-    /**
-     * @brief Get a formatted string representation of the device info.
-     * @return String describing device ID, frequency, connection type, and status
-     */
-    std::string getDeviceInfo() const;
 };
 
 #endif // USER_DEVICE_H

@@ -4,49 +4,86 @@
 
 #include "../include/CellularCore.h"
 #include "../include/Basicio.h"
-#include <stdexcept>
-#include <sstream>
 
 CellularCore::CellularCore(int coreId)
-    : coreId_(coreId), totalMessagesProcessed_(0) {}
-
-void CellularCore::addCellTower(std::shared_ptr<CellTower> tower) {
-    if (!tower) throw std::invalid_argument("Tower cannot be null");
-    int id = tower->getTowerId();
-    if (towers_.find(id) != towers_.end()) {
-        throw std::invalid_argument("Tower with given ID already exists in core");
+    : coreId_(coreId), towerCount_(0), messageQueueSize_(0), totalMessagesProcessed_(0) {
+    // Initialize tower pointers
+    for (int i = 0; i < MAX_TOWERS; ++i) {
+        towers_[i] = nullptr;
     }
-    towers_.emplace(id, std::move(tower));
 }
 
-std::shared_ptr<CellTower> CellularCore::getCellTower(int towerId) const {
-    auto it = towers_.find(towerId);
-    if (it == towers_.end()) return nullptr;
-    return it->second;
+CellularCore::~CellularCore() {
+    // Delete all towers
+    for (int i = 0; i < towerCount_; ++i) {
+        if (towers_[i]) {
+            delete towers_[i];
+            towers_[i] = nullptr;
+        }
+    }
 }
 
-void CellularCore::generateMessage(int fromDeviceId, int toTowerId, bool isVoice, const std::string& payload) {
-    std::lock_guard<std::mutex> lock(queueMutex_);
-    int nextId = static_cast<int>(messageQueue_.size()) + 1 + static_cast<int>(totalMessagesProcessed_);
-    Message m{ nextId, fromDeviceId, toTowerId, isVoice, payload };
-    messageQueue_.push_back(std::move(m));
+bool CellularCore::addCellTower(CellTower* tower) {
+    if (!tower) {
+        basicio_writeln("Error: Tower cannot be null");
+        return false;
+    }
+    if (towerCount_ >= MAX_TOWERS) {
+        basicio_writeln("Error: Core at capacity: cannot add more towers");
+        return false;
+    }
+    towers_[towerCount_] = tower;
+    towerCount_++;
+    return true;
+}
+
+CellTower* CellularCore::getCellTower(int towerId) const {
+    for (int i = 0; i < towerCount_; ++i) {
+        if (towers_[i] && towers_[i]->getTowerId() == towerId) {
+            return towers_[i];
+        }
+    }
+    return nullptr;
+}
+
+bool CellularCore::generateMessage(int fromDeviceId, int toTowerId, bool isVoice, const char* payload) {
+    if (messageQueueSize_ >= MAX_MESSAGES) {
+        basicio_writeln("Error: Message queue full");
+        return false;
+    }
+    
+    int nextId = static_cast<int>(messageQueueSize_) + 1 + static_cast<int>(totalMessagesProcessed_);
+    Message& m = messageQueue_[messageQueueSize_];
+    m.messageId = nextId;
+    m.fromDeviceId = fromDeviceId;
+    m.toTowerId = toTowerId;
+    m.isVoice = isVoice;
+    
+    if (payload) {
+        // Copy payload safely
+        for (int i = 0; i < 255 && payload[i] != '\0'; ++i) {
+            m.payload[i] = payload[i];
+        }
+        m.payload[255] = '\0';
+    } else {
+        m.payload[0] = '\0';
+    }
+    
+    messageQueueSize_++;
+    return true;
 }
 
 void CellularCore::processMessages() {
-    // We'll process a snapshot to minimize lock hold time
-    std::vector<Message> snapshot;
-    {
-        std::lock_guard<std::mutex> lock(queueMutex_);
-        if (messageQueue_.empty()) {
-            basicio_writeln("[Core] No messages to process.");
-            return;
-        }
-        snapshot.swap(messageQueue_);
+    if (messageQueueSize_ == 0) {
+        basicio_writeln("[Core] No messages to process.");
+        return;
     }
 
-    for (const auto &msg : snapshot) {
+    for (int i = 0; i < messageQueueSize_; ++i) {
+        const Message& msg = messageQueue_[i];
+        
         try {
-            auto tower = getCellTower(msg.toTowerId);
+            CellTower* tower = getCellTower(msg.toTowerId);
             if (!tower) {
                 basicio_write("[Core] Message ");
                 basicio_write_int(msg.messageId);
@@ -54,7 +91,6 @@ void CellularCore::processMessages() {
                 continue;
             }
 
-            // For demonstration we simply increment processed count and print info
             totalMessagesProcessed_++;
 
             // Output using Basicio functions only
@@ -67,29 +103,20 @@ void CellularCore::processMessages() {
             basicio_write(" | Type: ");
             basicio_writeln(msg.isVoice ? "VOICE" : "DATA");
 
-            // Optionally, we can calculate overhead for this tower's protocol
-            try {
-                const CommunicationProtocol* proto = tower->getProtocol();
-                int overhead = proto->calculateOverhead(1); // per-message overhead estimate
-                basicio_write("[Core] Protocol overhead estimate (per message): ");
+            // Calculate protocol overhead
+            const CommunicationProtocol* proto = tower->getProtocol();
+            if (proto) {
+                int overhead = proto->calculateOverhead(1);
+                basicio_write("[Core] Protocol overhead estimate: ");
                 basicio_write_int(overhead);
                 basicio_writeln(" messages");
-            } catch (...) {
-                basicio_writeln("[Core] Failed to calculate protocol overhead.");
             }
 
-        } catch (const std::exception &ex) {
-            basicio_write("[Core] Exception while processing message: ");
-            basicio_writeln(ex.what());
         } catch (...) {
-            basicio_writeln("[Core] Unknown exception while processing message.");
+            basicio_writeln("[Core] Exception while processing message.");
         }
     }
-}
-
-std::string CellularCore::getNetworkStatus() const {
-    std::ostringstream oss;
-    oss << "Core ID: " << coreId_ << " | Towers: " << towers_.size()
-        << " | Total Messages Processed: " << totalMessagesProcessed_;
-    return oss.str();
+    
+    // Clear message queue
+    messageQueueSize_ = 0;
 }
