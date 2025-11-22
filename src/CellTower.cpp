@@ -69,9 +69,8 @@ bool CellTower::allocateFrequency(UserDevice* device) {
         }
     }
     
-    // No frequency available
+    // No frequency available - don't terminate, just log and return false
     io.outputstring("Error: No available frequency channels for device");
-    io.terminate();
     return false;
 }
 
@@ -85,7 +84,6 @@ bool CellTower::addUserDevice(UserDevice* device) {
     // Check if max devices exceeded
     if (deviceCount_ >= MAX_DEVICES || deviceCount_ >= protocol_->calculateMaxUsers()) {
         io.outputstring("Error: Tower at capacity: cannot add more devices");
-        io.terminate();
         return false;
     }
 

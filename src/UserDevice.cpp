@@ -10,8 +10,9 @@ void UserDevice::validate() const {
         io.outputstring("Error: Device ID must be positive");
         io.terminate();
     }
-    if (assignedFrequency_ <= 0) {
-        io.outputstring("Error: Assigned frequency must be positive");
+    // Frequency can be 0 (first channel) or positive; just check it's not negative
+    if (assignedFrequency_ < 0) {
+        io.outputstring("Error: Assigned frequency must be non-negative");
         io.terminate();
     }
 }
@@ -23,8 +24,8 @@ UserDevice::UserDevice(int deviceId, int frequency, ConnectionType type)
 }
 
 void UserDevice::setAssignedFrequency(int frequency) {
-    if (frequency <= 0) {
-        io.outputstring("Error: Assigned frequency must be positive");
+    if (frequency < 0) {
+        io.outputstring("Error: Assigned frequency must be non-negative");
         io.terminate();
         return;
     }

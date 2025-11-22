@@ -1,41 +1,31 @@
-section .text
-    global _start
-    global syscall3
-    extern main
-
-_start:
-    call main
-    mov rdi, 60       ; syscall number for exit
-    xor rsi, rsi      ; status 0
-    xor rdx, rdx
-    xor rcx, rcx
-    call syscall3
+.text
+    .globl syscall3
 
 syscall3:
-    mov rax, rdi
-    mov rdi, rsi
-    mov rsi, rdx
-    mov rdx, rcx
+    movq %rdi, %rax
+    movq %rsi, %rdi
+    movq %rdx, %rsi
+    movq %rcx, %rdx
     syscall
     ret
 
-global syscall6
+    .globl syscall6
 
 syscall6:
-    mov rax, rdi      ; syscall number
-    mov rdi, rsi      ; arg1
-    mov rsi, rdx      ; arg2
-    mov rdx, rcx      ; arg3
-    mov r10, r8       ; arg4
-    mov r8, r9        ; arg5
-    mov r9, [rsp+8]   ; arg6 (from stack)
+    movq %rdi, %rax      # syscall number
+    movq %rsi, %rdi      # arg1
+    movq %rdx, %rsi      # arg2
+    movq %rcx, %rdx      # arg3
+    movq %r8, %r10       # arg4
+    movq %r9, %r8        # arg5
+    movq 8(%rsp), %r9    # arg6 (from stack)
     syscall
     ret
 
 
-global syscall
+    .globl syscall
 syscall:
     jmp syscall6
 
 
-section .note.GNU-stack noalloc noexec nowrite progbits
+.section .note.GNU-stack,"",@progbits
