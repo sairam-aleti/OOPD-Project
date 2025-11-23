@@ -26,14 +26,15 @@ struct Message {
  * message queue, and statistics such as total messages processed.
  */
 class CellularCore {
-private:
+public:
     static constexpr int MAX_TOWERS = 100;
-    static constexpr int MAX_MESSAGES = 10000;
-    
+    static constexpr int MAX_MESSAGES = 100000;
+
+private:
     int coreId_;
     CellTower* towers_[MAX_TOWERS];
     int towerCount_;
-    Message messageQueue_[MAX_MESSAGES];
+    Message* messageQueue_;
     int messageQueueSize_;
     long long totalMessagesProcessed_;
 

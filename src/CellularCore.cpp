@@ -11,6 +11,7 @@ CellularCore::CellularCore(int coreId)
     for (int i = 0; i < MAX_TOWERS; ++i) {
         towers_[i] = nullptr;
     }
+    messageQueue_ = new Message[MAX_MESSAGES];
 }
 
 CellularCore::~CellularCore() {
@@ -21,6 +22,7 @@ CellularCore::~CellularCore() {
             towers_[i] = nullptr;
         }
     }
+    delete[] messageQueue_;
 }
 
 bool CellularCore::addCellTower(CellTower* tower) {

@@ -182,7 +182,7 @@ int main() {
         io.outputstring("\n========== Message Generation & Processing ==========\n"); io.terminate();
         io.outputstring("Generating "); io.outputint(totalMessages); io.outputstring(" messages...\n"); io.terminate();
 
-        for (int i = 0; i < totalMessages && i < 10000; ++i) {
+        for (int i = 0; i < totalMessages && i < CellularCore::MAX_MESSAGES; ++i) {
             bool isVoice = (i % 4 == 0);
             int deviceId = 5000 + (i % maxDevices) + 1;
             core.generateMessage(deviceId, towerId, isVoice, isVoice ? "Voice call" : "Data packet");
@@ -194,7 +194,7 @@ int main() {
         // Calculate message breakdown
         int voiceMessages = 0;
         int dataMessages = 0;
-        for (int i = 0; i < totalMessages && i < 10000; ++i) {
+        for (int i = 0; i < totalMessages && i < CellularCore::MAX_MESSAGES; ++i) {
             if (i % 4 == 0) {
                 voiceMessages++;
             } else {
