@@ -38,6 +38,13 @@ public:
      * @return number of overhead messages
      */
     virtual int calculateOverhead(int totalMessages) const = 0;
+
+    /**
+     * @brief Calculate required cellular cores for full potential.
+     * Default is 1 for older protocols.
+     * @return Number of cores
+     */
+    virtual int calculateRequiredCores() const { return 1; }
 };
 
 #endif // COMMUNICATION_PROTOCOL_H

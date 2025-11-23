@@ -15,14 +15,16 @@
  * of connected user devices. It allocates frequencies and tracks users per channel.
  */
 class CellTower {
+public:
+    static constexpr int MAX_DEVICES = 100000;
+    static constexpr int MAX_FREQ_KHZ = 100000;
+
 private:
-    static constexpr int MAX_DEVICES = 20000;
-    
     int towerId_;
     const CommunicationProtocol* protocol_;
     UserDevice* devices_[MAX_DEVICES];
     int deviceCount_;
-    int frequencyAllocation_[1001]; // frequency -> count of devices (index 0-1000 kHz)
+    int frequencyAllocation_[MAX_FREQ_KHZ + 1]; // frequency -> count of devices
 
     /**
      * @brief Check if a frequency channel is at capacity.

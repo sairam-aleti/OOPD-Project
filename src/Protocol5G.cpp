@@ -22,7 +22,7 @@ int Protocol5G::getChannelCount() const {
 
 int Protocol5G::getFrequencyChannel(int index) const {
     if (index < 0 || index >= getChannelCount()) return -1;
-    return FREQUENCY_BAND_MHZ * 1000 + index * CHANNEL_BANDWIDTH_KHZ;
+    return index * CHANNEL_BANDWIDTH_KHZ;
 }
 
 int Protocol5G::calculateMaxUsers() const {

@@ -4,105 +4,230 @@
 #include "../include/Protocol3G.h"
 #include "../include/Protocol4G.h"
 #include "../include/Protocol5G.h"
+#include "../include/CustomProtocol.h"
 #include "../include/UserDevice.h"
 #include "../include/CellTower.h"
 #include "../include/CellularCore.h"
 
 int main() {
-    // Initialize core
-    CellularCore core(1);
+    int choice = 0;
+    
+    while (1) {
+        io.outputstring("\n========== Cellular Network Simulator ==========\n"); io.terminate();
+        io.outputstring("Select a communication protocol:\n"); io.terminate();
+        io.outputstring("1. 2G (TDMA)\n"); io.terminate();
+        io.outputstring("2. 3G (CDMA)\n"); io.terminate();
+        io.outputstring("3. 4G (OFDM)\n"); io.terminate();
+        io.outputstring("4. 5G (Massive MIMO)\n"); io.terminate();
+        io.outputstring("5. Custom Protocol\n"); io.terminate();
+        io.outputstring("6. Exit\n"); io.terminate();
+        io.outputstring("Enter choice (1-6): "); 
+        choice = io.inputint();
 
-    // Instantiate protocols
-    Protocol2G proto2g;
-    Protocol3G proto3g;
-    Protocol4G proto4g;
-    Protocol5G proto5g;
+        if (choice == 6) {
+            io.outputstring("\nThank you for using Cellular Network Simulator. Exiting...\n"); io.terminate();
+            break;
+        }
 
-    // Print capacities
-    io.outputstring("=== Protocol Capacities ==="); io.terminate();
+        CellularCore core(1);
+        CommunicationProtocol* protocol = nullptr;
+        int towerId = 0;
+        const char* protocolName = "";
+        int usersPerChannel = 0;
+        int channelBandwidth = 0;
+        int totalSpectrum = 0;
 
-    io.outputstring(proto2g.getName()); io.outputstring(" - Max Users: "); io.outputint(proto2g.calculateMaxUsers()); io.terminate();
-    io.outputstring("First channel users (2G): "); io.outputint(proto2g.getUsersPerChannel()); io.terminate();
+        if (choice == 1) {
+            protocol = new Protocol2G();
+            protocolName = "2G (TDMA)";
+            towerId = 1;
+        } else if (choice == 2) {
+            protocol = new Protocol3G();
+            protocolName = "3G (CDMA)";
+            towerId = 2;
+        } else if (choice == 3) {
+            protocol = new Protocol4G();
+            protocolName = "4G (OFDM)";
+            towerId = 3;
+        } else if (choice == 4) {
+            protocol = new Protocol5G();
+            protocolName = "5G (Massive MIMO)";
+            towerId = 4;
+        } else if (choice == 5) {
+            io.outputstring("\n========== Custom Protocol Configuration ==========\n"); io.terminate();
+            
+            io.outputstring("Enter users per channel: "); 
+            usersPerChannel = io.inputint();
+            
+            io.outputstring("Enter channel bandwidth (kHz): "); 
+            channelBandwidth = io.inputint();
+            
+            io.outputstring("Enter total spectrum (kHz): "); 
+            totalSpectrum = io.inputint();
+            
+            if (channelBandwidth <= 0 || totalSpectrum <= 0 || usersPerChannel <= 0) {
+                io.outputstring("\nInvalid custom protocol parameters. Returning to menu.\n"); io.terminate();
+                continue;
+            }
 
-    io.outputstring(proto3g.getName()); io.outputstring(" - Max Users: "); io.outputint(proto3g.calculateMaxUsers()); io.terminate();
-    io.outputstring("First channel users (3G): "); io.outputint(proto3g.getUsersPerChannel()); io.terminate();
+            if (channelBandwidth > totalSpectrum) {
+                io.outputstring("\nError: Channel bandwidth cannot be larger than total spectrum.\n"); io.terminate();
+                continue;
+            }
 
-    io.outputstring(proto4g.getName()); io.outputstring(" - Max Users: "); io.outputint(proto4g.calculateMaxUsers()); io.terminate();
-    io.outputstring("First channel users (4G, per antenna reuse): "); io.outputint(proto4g.getUsersPerChannel()); io.terminate();
-    io.outputstring("4G required cores: "); io.outputint(proto4g.calculateRequiredCores()); io.terminate();
+            protocol = new CustomProtocol(usersPerChannel, channelBandwidth, totalSpectrum);
+            protocolName = "Custom Protocol";
+            towerId = 5;
+            
+            io.outputstring("\nCustom protocol created:\n"); io.terminate();
+            io.outputstring("Users per channel: "); io.outputint(usersPerChannel); io.terminate();
+            io.outputstring("Channel bandwidth (kHz): "); io.outputint(channelBandwidth); io.terminate();
+            io.outputstring("Total spectrum (kHz): "); io.outputint(totalSpectrum); io.terminate();
+            io.outputstring("(Overhead percentage will be asked after message count)\n"); io.terminate();
+            
+        } else {
+            io.outputstring("\nInvalid choice. Returning to menu.\n"); io.terminate();
+            continue;
+        }
 
-    io.outputstring(proto5g.getName()); io.outputstring(" - Max Users: "); io.outputint(proto5g.calculateMaxUsers()); io.terminate();
-    io.outputstring("First channel users (5G): "); io.outputint(proto5g.getUsersPerChannel()); io.terminate();
-    io.outputstring("5G required cores: "); io.outputint(proto5g.calculateRequiredCores()); io.terminate();
+        // Display protocol information
+        io.outputstring("\n========== "); io.outputstring(protocolName); io.outputstring(" Protocol Information ==========\n"); io.terminate();
+        
+        io.outputstring("Users per channel: "); io.outputint(protocol->getUsersPerChannel()); io.terminate();
+        io.outputstring("Channel bandwidth (kHz): "); io.outputint(protocol->getChannelBandwidth()); io.terminate();
+        io.outputstring("Number of channels: "); io.outputint(protocol->getChannelCount()); io.terminate();
+        io.outputstring("Maximum users supported: "); io.outputint(protocol->calculateMaxUsers()); io.terminate();
+        
+        if (choice == 3 || choice == 4) {
+             io.outputstring("Required Cellular Cores: "); io.outputint(protocol->calculateRequiredCores()); io.terminate();
+        }
 
-    // Create towers and add to core
-    CellTower* tower2 = new CellTower(1, &proto2g);
-    CellTower* tower3 = new CellTower(2, &proto3g);
-    CellTower* tower4 = new CellTower(3, &proto4g);
-    CellTower* tower5 = new CellTower(4, &proto5g);
+        // Get message quantity from user
+        io.outputstring("\nEnter total number of messages to generate: "); 
+        int totalMessages = io.inputint();
 
-    core.addCellTower(tower2);
-    core.addCellTower(tower3);
-    core.addCellTower(tower4);
-    core.addCellTower(tower5);
+        // Get overhead percentage from user
+        io.outputstring("Enter overhead percentage for this simulation (0-100): "); 
+        int overheadPercent = io.inputint();
+        
+        if (overheadPercent < 0 || overheadPercent > 100) {
+            io.outputstring("\nInvalid overhead percentage. Setting to 0.\n"); io.terminate();
+            overheadPercent = 0;
+        }
 
-    // Add a few sample devices to each tower (up to 5 or first-channel capacity)
-    int addCount2 = proto2g.getUsersPerChannel() < 5 ? proto2g.getUsersPerChannel() : 5;
-    int addCount3 = proto3g.getUsersPerChannel() < 5 ? proto3g.getUsersPerChannel() : 5;
-    int addCount4 = (proto4g.getUsersPerChannel() < 5) ? proto4g.getUsersPerChannel() : 5;
-    int addCount5 = (proto5g.getUsersPerChannel() < 5) ? proto5g.getUsersPerChannel() : 5;
+        // Calculate overhead
+        if (choice == 5) {
+             static_cast<CustomProtocol*>(protocol)->setOverheadPercent(static_cast<double>(overheadPercent));
+        }
+        int overheadMessages = (totalMessages * overheadPercent) / 100;
+        
+        io.outputstring("\n========== Overhead Calculation ==========\n"); io.terminate();
+        io.outputstring("Total messages requested: "); io.outputint(totalMessages); io.terminate();
+        io.outputstring("Overhead percentage: "); io.outputint(overheadPercent); io.outputstring("%\n"); io.terminate();
+        io.outputstring("Overhead reduction: "); io.outputint(overheadMessages); io.outputstring(" messages reserved for overhead\n"); io.terminate();
 
-    for (int i = 1; i <= addCount2; ++i) {
-        UserDevice* d = new UserDevice(100 + i, 0, ConnectionType::DATA);
-        tower2->addUserDevice(d);
-        io.outputstring("2G: Added device "); io.outputint(d->getDeviceId()); io.outputstring(" assigned "); io.outputint(d->getAssignedFrequency()); io.terminate();
+        // Calculate max devices: reduce protocol capacity by overhead percentage
+        int maxCapacity = protocol->calculateMaxUsers();
+        int maxDevices = maxCapacity - ((maxCapacity * overheadPercent) / 100);
+        
+        if (maxCapacity > 0 && maxDevices < 1) maxDevices = 1;
+
+        // Clamp to tower hardware limit
+        if (maxDevices > CellTower::MAX_DEVICES) {
+            io.outputstring("Note: Limiting devices to tower capacity of "); 
+            io.outputint(CellTower::MAX_DEVICES); 
+            io.outputstring("\n"); io.terminate();
+            maxDevices = CellTower::MAX_DEVICES;
+        }
+
+        io.outputstring("Maximum devices after overhead reduction: "); io.outputint(maxDevices); io.terminate();
+
+        if (maxDevices <= 0) {
+            io.outputstring("\nError: No devices can be supported with current configuration. Skipping simulation.\n"); io.terminate();
+            if (protocol) delete protocol;
+            continue;
+        }
+
+        // Create tower for this protocol
+        CellTower* tower = new CellTower(towerId, protocol);
+        
+        core.addCellTower(tower);
+
+        // Add devices to tower
+        io.outputstring("\n========== Device Allocation ==========\n"); io.terminate();
+        io.outputstring("Adding "); io.outputint(maxDevices); io.outputstring(" devices to tower...\n"); io.terminate();
+
+        for (int i = 1; i <= maxDevices; ++i) {
+            ConnectionType type = (i % 3 == 0) ? ConnectionType::VOICE : ConnectionType::DATA;
+            int deviceId = 5000 + i;
+            UserDevice* device = new UserDevice(deviceId, 0, type);
+            tower->addUserDevice(device);
+        }
+
+        // Show first channel occupancy
+        int firstChannelFreq = protocol->getFrequencyChannel(0);
+        int firstChannelUsers = tower->getUsersOnFrequency(firstChannelFreq);
+        
+        io.outputstring("\nFirst channel frequency (kHz): "); 
+        if (choice == 4) {
+             // 5G: 1800 MHz base
+             io.outputint(1800000 + firstChannelFreq);
+        } else {
+             io.outputint(firstChannelFreq);
+        }
+        io.terminate();
+        io.outputstring("Users on first channel: "); io.outputint(firstChannelUsers); io.terminate();
+
+        // Generate messages
+        io.outputstring("\n========== Message Generation & Processing ==========\n"); io.terminate();
+        io.outputstring("Generating "); io.outputint(totalMessages); io.outputstring(" messages...\n"); io.terminate();
+
+        for (int i = 0; i < totalMessages && i < 10000; ++i) {
+            bool isVoice = (i % 4 == 0);
+            int deviceId = 5000 + (i % maxDevices) + 1;
+            core.generateMessage(deviceId, towerId, isVoice, isVoice ? "Voice call" : "Data packet");
+        }
+
+        io.outputstring("\nProcessing messages...\n"); io.terminate();
+        core.processMessages();
+
+        // Calculate message breakdown
+        int voiceMessages = 0;
+        int dataMessages = 0;
+        for (int i = 0; i < totalMessages && i < 10000; ++i) {
+            if (i % 4 == 0) {
+                voiceMessages++;
+            } else {
+                dataMessages++;
+            }
+        }
+
+        io.outputstring("\n========== Simulation Complete ==========\n"); io.terminate();
+        io.outputstring("Total messages processed: "); io.outputint(totalMessages); io.terminate();
+        io.outputstring("  - Voice messages: "); io.outputint(voiceMessages); io.terminate();
+        io.outputstring("  - Data messages: "); io.outputint(dataMessages); io.terminate();
+        
+        io.outputstring("Devices utilized: "); io.outputint(maxDevices); io.terminate();
+        io.outputstring("Overhead incurred: "); io.outputint(overheadMessages); io.outputstring(" messages ("); io.outputint(overheadPercent); io.outputstring("%)\n"); io.terminate();
+        
+        io.outputstring("Channel Statistics:\n"); io.terminate();
+        io.outputstring("  - First channel frequency (kHz): "); 
+        if (choice == 4) {
+             io.outputint(1800000 + firstChannelFreq);
+        } else {
+             io.outputint(firstChannelFreq);
+        }
+        io.terminate();
+        io.outputstring("  - Users on first channel: "); io.outputint(firstChannelUsers); io.terminate();
+        
+        int maxChannelUsers = protocol->getUsersPerChannel();
+        io.outputstring("  - Max capacity per channel: "); io.outputint(maxChannelUsers); io.terminate();
+        
+        if (protocol) {
+            delete protocol;
+            protocol = nullptr;
+        }
     }
 
-    for (int i = 1; i <= addCount3; ++i) {
-        UserDevice* d = new UserDevice(200 + i, 0, ConnectionType::DATA);
-        tower3->addUserDevice(d);
-        io.outputstring("3G: Added device "); io.outputint(d->getDeviceId()); io.outputstring(" assigned "); io.outputint(d->getAssignedFrequency()); io.terminate();
-    }
-
-    for (int i = 1; i <= addCount4; ++i) {
-        UserDevice* d = new UserDevice(300 + i, 0, ConnectionType::DATA);
-        tower4->addUserDevice(d);
-        io.outputstring("4G: Added device "); io.outputint(d->getDeviceId()); io.outputstring(" assigned "); io.outputint(d->getAssignedFrequency()); io.terminate();
-    }
-
-    for (int i = 1; i <= addCount5; ++i) {
-        UserDevice* d = new UserDevice(400 + i, 0, ConnectionType::DATA);
-        tower5->addUserDevice(d);
-        io.outputstring("5G: Added device "); io.outputint(d->getDeviceId()); io.outputstring(" assigned "); io.outputint(d->getAssignedFrequency()); io.terminate();
-    }
-
-    // Show users on first channel for each tower
-    io.outputstring("\n=== Users on first channel per protocol ==="); io.terminate();
-    int freq2 = proto2g.getFrequencyChannel(0);
-    io.outputstring("2G first channel (kHz): "); io.outputint(freq2); io.terminate();
-    io.outputstring("Users on 2G first channel: "); io.outputint(tower2->getUsersOnFrequency(freq2)); io.terminate();
-
-    int freq3 = proto3g.getFrequencyChannel(0);
-    io.outputstring("3G first channel (kHz): "); io.outputint(freq3); io.terminate();
-    io.outputstring("Users on 3G first channel: "); io.outputint(tower3->getUsersOnFrequency(freq3)); io.terminate();
-
-    int freq4 = proto4g.getFrequencyChannel(0);
-    io.outputstring("4G first channel (kHz): "); io.outputint(freq4); io.terminate();
-    io.outputstring("Users on 4G first channel: "); io.outputint(tower4->getUsersOnFrequency(freq4)); io.terminate();
-
-    int freq5 = proto5g.getFrequencyChannel(0);
-    io.outputstring("5G first channel (kHz): "); io.outputint(freq5); io.terminate();
-    io.outputstring("Users on 5G first channel: "); io.outputint(tower5->getUsersOnFrequency(freq5)); io.terminate();
-
-    // Generate some messages and process
-    core.generateMessage(101, 1, false, "Hello from 2G device 101");
-    core.generateMessage(201, 2, true, "Voice call from 3G device 201");
-    core.generateMessage(301, 3, false, "Data packet from 4G device 301");
-    core.generateMessage(401, 4, false, "Data packet from 5G device 401");
-
-    io.outputstring("\nProcessing messages..."); io.terminate();
-    core.processMessages();
-
-    io.outputstring("\nSimulation complete.\n"); io.terminate();
     return 0;
 }

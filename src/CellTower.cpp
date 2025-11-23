@@ -13,7 +13,7 @@ CellTower::CellTower(int towerId, const CommunicationProtocol* protocol)
         return;
     }
     // Initialize frequency allocation
-    for (int i = 0; i <= 1000; ++i) {
+    for (int i = 0; i <= MAX_FREQ_KHZ; ++i) {
         frequencyAllocation_[i] = 0;
     }
     // Initialize device pointers
@@ -33,14 +33,14 @@ CellTower::~CellTower() {
 }
 
 bool CellTower::isFrequencyAtCapacity(int frequency) const {
-    if (frequency < 0 || frequency > 1000) return true;
+    if (frequency < 0 || frequency > MAX_FREQ_KHZ) return true;
     int usersOnFreq = frequencyAllocation_[frequency];
     int capacity = protocol_->getUsersPerChannel();
     return usersOnFreq >= capacity;
 }
 
 int CellTower::getUsersOnFrequency(int frequency) const {
-    if (frequency < 0 || frequency > 1000) return 0;
+    if (frequency < 0 || frequency > MAX_FREQ_KHZ) return 0;
     return frequencyAllocation_[frequency];
 }
 
@@ -62,15 +62,14 @@ bool CellTower::allocateFrequency(UserDevice* device) {
     // Find first frequency with available capacity
     for (int i = 0; i < channelCount; ++i) {
         int freq = protocol_->getFrequencyChannel(i);
-        if (freq >= 0 && freq <= 1000 && !isFrequencyAtCapacity(freq)) {
+        if (freq >= 0 && freq <= MAX_FREQ_KHZ && !isFrequencyAtCapacity(freq)) {
             device->setAssignedFrequency(freq);
             frequencyAllocation_[freq]++;
             return true;
         }
     }
     
-    // No frequency available - don't terminate, just log and return false
-    io.outputstring("Error: No available frequency channels for device");
+    // No frequency available - silently return false
     return false;
 }
 
@@ -104,7 +103,7 @@ bool CellTower::removeUserDevice(int deviceId) {
         if (devices_[i] && devices_[i]->getDeviceId() == deviceId) {
             // Remove from frequency allocation
             int freq = devices_[i]->getAssignedFrequency();
-            if (freq >= 0 && freq <= 1000) {
+            if (freq >= 0 && freq <= MAX_FREQ_KHZ) {
                 frequencyAllocation_[freq]--;
             }
 

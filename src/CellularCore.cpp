@@ -83,46 +83,37 @@ void CellularCore::processMessages() {
         return;
     }
 
+    int successCount = 0;
+    int failureCount = 0;
+
     for (int i = 0; i < messageQueueSize_; ++i) {
         const Message& msg = messageQueue_[i];
         
         try {
             CellTower* tower = getCellTower(msg.toTowerId);
             if (!tower) {
-                io.outputstring("[Core] Message ");
-                io.outputint(msg.messageId);
-                io.outputstring(" dropped: destination tower not found.");
-                io.terminate();
+                failureCount++;
                 continue;
             }
 
             totalMessagesProcessed_++;
-
-            // Output using basicIO functions only
-            io.outputstring("[Core] Processing message ");
-            io.outputint(msg.messageId);
-            io.outputstring(" -> Tower ");
-            io.outputint(msg.toTowerId);
-            io.outputstring(" | From Device ");
-            io.outputint(msg.fromDeviceId);
-            io.outputstring(" | Type: ");
-            io.outputstring(msg.isVoice ? "VOICE" : "DATA");
-            io.terminate();
-
-            // Calculate protocol overhead
-            const CommunicationProtocol* proto = tower->getProtocol();
-            if (proto) {
-                int overhead = proto->calculateOverhead(1);
-                io.outputstring("[Core] Protocol overhead estimate: ");
-                io.outputint(overhead);
-                io.outputstring(" messages");
-                io.terminate();
-            }
+            successCount++;
 
         } catch (...) {
-            io.outputstring("[Core] Exception while processing message.");
-            io.terminate();
+            failureCount++;
         }
+    }
+    
+    io.outputstring("[Core] Successfully processed: ");
+    io.outputint(successCount);
+    io.outputstring(" messages\n");
+    io.terminate();
+    
+    if (failureCount > 0) {
+        io.outputstring("[Core] Failed to process: ");
+        io.outputint(failureCount);
+        io.outputstring(" messages\n");
+        io.terminate();
     }
     
     // Clear message queue
