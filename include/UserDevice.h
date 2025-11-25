@@ -34,17 +34,7 @@ private:
     void validate() const;
 
 public:
-    /**
-     * @brief Construct a new UserDevice.
-     * @param deviceId Unique device identifier (must be positive)
-     * @param frequency Assigned frequency in kHz (must be positive)
-     * @param type Connection type (DATA or VOICE)
-     */
     UserDevice(int deviceId, int frequency, ConnectionType type);
-
-    /**
-     * @brief Destructor.
-     */
     ~UserDevice() = default;
 
     // Prevent copying
@@ -55,48 +45,13 @@ public:
     UserDevice(UserDevice&&) = default;
     UserDevice& operator=(UserDevice&&) = default;
 
-    // Getters
-    /**
-     * @brief Get the device ID.
-     * @return Unique device identifier
-     */
     int getDeviceId() const { return deviceId_; }
-
-    /**
-     * @brief Get the assigned frequency.
-     * @return Frequency in kHz
-     */
     int getAssignedFrequency() const { return assignedFrequency_; }
-
-    /**
-     * @brief Get the connection type.
-     * @return ConnectionType (DATA or VOICE)
-     */
     ConnectionType getConnectionType() const { return connectionType_; }
-
-    /**
-     * @brief Get connection status.
-     * @return true if connected, false otherwise
-     */
     bool isConnected() const { return isConnected_; }
 
-    // Setters with validation
-    /**
-     * @brief Set the assigned frequency.
-     * @param frequency New frequency in kHz (must be positive)
-     */
     void setAssignedFrequency(int frequency);
-
-    /**
-     * @brief Set the connection type.
-     * @param type New connection type
-     */
     void setConnectionType(ConnectionType type) { connectionType_ = type; }
-
-    /**
-     * @brief Set connection status.
-     * @param connected true to mark as connected, false to disconnect
-     */
     void setConnected(bool connected) { isConnected_ = connected; }
 };
 

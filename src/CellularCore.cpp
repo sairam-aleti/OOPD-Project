@@ -7,7 +7,6 @@
 
 CellularCore::CellularCore(int coreId)
     : coreId_(coreId), towerCount_(0), messageQueueSize_(0), totalMessagesProcessed_(0) {
-    // Initialize tower pointers
     for (int i = 0; i < MAX_TOWERS; ++i) {
         towers_[i] = nullptr;
     }
@@ -15,7 +14,6 @@ CellularCore::CellularCore(int coreId)
 }
 
 CellularCore::~CellularCore() {
-    // Delete all towers
     for (int i = 0; i < towerCount_; ++i) {
         if (towers_[i]) {
             delete towers_[i];
@@ -27,13 +25,11 @@ CellularCore::~CellularCore() {
 
 bool CellularCore::addCellTower(CellTower* tower) {
     if (!tower) {
-        io.outputstring("Error: Tower cannot be null");
-        io.terminate();
+        io.outputstring("Error: Tower cannot be null\n");
         return false;
     }
     if (towerCount_ >= MAX_TOWERS) {
-        io.outputstring("Error: Core at capacity: cannot add more towers");
-        io.terminate();
+        io.outputstring("Error: Core at capacity: cannot add more towers\n");
         return false;
     }
     towers_[towerCount_] = tower;
@@ -52,8 +48,7 @@ CellTower* CellularCore::getCellTower(int towerId) const {
 
 bool CellularCore::generateMessage(int fromDeviceId, int toTowerId, bool isVoice, const char* payload) {
     if (messageQueueSize_ >= MAX_MESSAGES) {
-        io.outputstring("Error: Message queue full");
-        io.terminate();
+        io.outputstring("Error: Message queue full\n");
         return false;
     }
     
@@ -63,25 +58,25 @@ bool CellularCore::generateMessage(int fromDeviceId, int toTowerId, bool isVoice
     m.fromDeviceId = fromDeviceId;
     m.toTowerId = toTowerId;
     m.isVoice = isVoice;
-    
+
+    for (int i = 0; i < 256; ++i) {
+        m.payload[i] = '\0';
+    }
+
     if (payload) {
-        // Copy payload safely
         for (int i = 0; i < 255 && payload[i] != '\0'; ++i) {
             m.payload[i] = payload[i];
         }
         m.payload[255] = '\0';
-    } else {
-        m.payload[0] = '\0';
     }
-    
+
     messageQueueSize_++;
     return true;
 }
 
 void CellularCore::processMessages() {
     if (messageQueueSize_ == 0) {
-        io.outputstring("[Core] No messages to process.");
-        io.terminate();
+        io.outputstring("[Core] No messages to process.\n");
         return;
     }
 
@@ -98,6 +93,7 @@ void CellularCore::processMessages() {
                 continue;
             }
 
+            // tower->handleMessage(msg); // could be added in a more advanced version
             totalMessagesProcessed_++;
             successCount++;
 
@@ -109,15 +105,12 @@ void CellularCore::processMessages() {
     io.outputstring("[Core] Successfully processed: ");
     io.outputint(successCount);
     io.outputstring(" messages\n");
-    io.terminate();
     
     if (failureCount > 0) {
         io.outputstring("[Core] Failed to process: ");
         io.outputint(failureCount);
         io.outputstring(" messages\n");
-        io.terminate();
     }
     
-    // Clear message queue
     messageQueueSize_ = 0;
 }

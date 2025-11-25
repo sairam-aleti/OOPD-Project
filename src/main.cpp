@@ -8,6 +8,55 @@
 #include "../include/UserDevice.h"
 #include "../include/CellTower.h"
 #include "../include/CellularCore.h"
+#include "../include/Utility.h"
+
+#include <cstdio> // for FILE*, fopen, fscanf, fclose
+
+// Load user devices from a CSV/TXT file.
+// Format per line: deviceId,TypeChar   e.g., 5001,D  or  5002,V
+bool loadDevicesFromFile(const char* filename, CellTower* tower, int& devicesAdded, int maxDevices) {
+    FILE* f = std::fopen(filename, "r");
+    if (!f) {
+        io.outputstring("Error: Could not open user file: ");
+        io.outputstring(filename);
+        io.outputstring("\n");
+        return false;
+    }
+
+    while (devicesAdded < maxDevices) {
+        int id;
+        char typeChar;
+
+        int read = std::fscanf(f, "%d,%c", &id, &typeChar);
+        if (read != 2) {
+            break;
+        }
+
+        ConnectionType type;
+        if (typeChar == 'V' || typeChar == 'v') {
+            type = ConnectionType::VOICE;
+        } else {
+            type = ConnectionType::DATA;
+        }
+
+        UserDevice* device = new UserDevice(id, 0, type);
+        if (tower->addUserDevice(device)) {
+            devicesAdded++;
+        } else {
+            delete device;
+            break;
+        }
+    }
+
+    std::fclose(f);
+
+    if (devicesAdded == 0) {
+        io.outputstring("Warning: No valid devices loaded from file.\n");
+        return false;
+    }
+
+    return true;
+}
 
 int main() {
     int choice = 0;
@@ -90,7 +139,6 @@ int main() {
             continue;
         }
 
-        // Display protocol information
         io.outputstring("\n========== "); io.outputstring(protocolName); io.outputstring(" Protocol Information ==========\n"); io.terminate();
         
         io.outputstring("Users per channel: "); io.outputint(protocol->getUsersPerChannel()); io.terminate();
@@ -102,23 +150,21 @@ int main() {
              io.outputstring("Required Cellular Cores: "); io.outputint(protocol->calculateRequiredCores()); io.terminate();
         }
 
-        // Get message quantity from user
         io.outputstring("\nEnter total number of messages to generate: "); 
         int totalMessages = io.inputint();
 
-        // Get overhead percentage from user
         io.outputstring("Enter overhead percentage for this simulation (0-100): "); 
         int overheadPercent = io.inputint();
         
         if (overheadPercent < 0 || overheadPercent > 100) {
-            io.outputstring("\nInvalid overhead percentage. Setting to 0.\n"); io.terminate();
-            overheadPercent = 0;
+            io.outputstring("\nInvalid overhead percentage. Clamping to [0, 100].\n"); io.terminate();
+            overheadPercent = clampValue<int>(overheadPercent, 0, 100);
         }
 
-        // Calculate overhead
         if (choice == 5) {
              static_cast<CustomProtocol*>(protocol)->setOverheadPercent(static_cast<double>(overheadPercent));
         }
+
         int overheadMessages = (totalMessages * overheadPercent) / 100;
         
         io.outputstring("\n========== Overhead Calculation ==========\n"); io.terminate();
@@ -126,13 +172,11 @@ int main() {
         io.outputstring("Overhead percentage: "); io.outputint(overheadPercent); io.outputstring("%\n"); io.terminate();
         io.outputstring("Overhead reduction: "); io.outputint(overheadMessages); io.outputstring(" messages reserved for overhead\n"); io.terminate();
 
-        // Calculate max devices: reduce protocol capacity by overhead percentage
         int maxCapacity = protocol->calculateMaxUsers();
         int maxDevices = maxCapacity - ((maxCapacity * overheadPercent) / 100);
         
         if (maxCapacity > 0 && maxDevices < 1) maxDevices = 1;
 
-        // Clamp to tower hardware limit
         if (maxDevices > CellTower::MAX_DEVICES) {
             io.outputstring("Note: Limiting devices to tower capacity of "); 
             io.outputint(CellTower::MAX_DEVICES); 
@@ -148,29 +192,56 @@ int main() {
             continue;
         }
 
-        // Create tower for this protocol
         CellTower* tower = new CellTower(towerId, protocol);
-        
         core.addCellTower(tower);
 
-        // Add devices to tower
         io.outputstring("\n========== Device Allocation ==========\n"); io.terminate();
-        io.outputstring("Adding "); io.outputint(maxDevices); io.outputstring(" devices to tower...\n"); io.terminate();
 
-        for (int i = 1; i <= maxDevices; ++i) {
-            ConnectionType type = (i % 3 == 0) ? ConnectionType::VOICE : ConnectionType::DATA;
-            int deviceId = 5000 + i;
-            UserDevice* device = new UserDevice(deviceId, 0, type);
-            tower->addUserDevice(device);
+        int devicesAdded = 0;
+        io.outputstring("Load user devices from file? (1 = yes, 0 = no): ");
+        int loadFromFile = io.inputint();
+
+        if (loadFromFile == 1) {
+            const char* filename = "users.csv";
+            io.outputstring("Attempting to load devices from file: ");
+            io.outputstring(filename);
+            io.outputstring("\n"); io.terminate();
+
+            if (!loadDevicesFromFile(filename, tower, devicesAdded, maxDevices)) {
+                io.outputstring("Falling back to synthetic device generation.\n"); io.terminate();
+            }
         }
 
-        // Show first channel occupancy
+        if (devicesAdded == 0) {
+            io.outputstring("Adding "); io.outputint(maxDevices); io.outputstring(" devices to tower...\n"); io.terminate();
+
+            for (int i = 1; i <= maxDevices; ++i) {
+                ConnectionType type = (i % 3 == 0) ? ConnectionType::VOICE : ConnectionType::DATA;
+                int deviceId = 5000 + i;
+                UserDevice* device = new UserDevice(deviceId, 0, type);
+                if (tower->addUserDevice(device)) {
+                    devicesAdded++;
+                } else {
+                    delete device;
+                    break;
+                }
+            }
+        }
+
+        if (devicesAdded == 0) {
+            io.outputstring("Error: Failed to allocate any devices to tower.\n"); io.terminate();
+            if (protocol) {
+                delete protocol;
+                protocol = nullptr;
+            }
+            continue;
+        }
+
         int firstChannelFreq = protocol->getFrequencyChannel(0);
         int firstChannelUsers = tower->getUsersOnFrequency(firstChannelFreq);
         
         io.outputstring("\nFirst channel frequency (kHz): "); 
         if (choice == 4) {
-             // 5G: 1800 MHz base
              io.outputint(1800000 + firstChannelFreq);
         } else {
              io.outputint(firstChannelFreq);
@@ -178,27 +249,39 @@ int main() {
         io.terminate();
         io.outputstring("Users on first channel: "); io.outputint(firstChannelUsers); io.terminate();
 
-        // Generate messages
         io.outputstring("\n========== Message Generation & Processing ==========\n"); io.terminate();
         io.outputstring("Generating "); io.outputint(totalMessages); io.outputstring(" messages...\n"); io.terminate();
 
         for (int i = 0; i < totalMessages && i < CellularCore::MAX_MESSAGES; ++i) {
-            bool isVoice = (i % 4 == 0);
-            int deviceId = 5000 + (i % maxDevices) + 1;
+            bool isVoice;
+            if (choice == 1) {
+                isVoice = (i % 4 != 0);  // 2G: approx 3:1 voice:data
+            } else {
+                isVoice = (i % 4 == 0);  // others: 1:3 voice:data
+            }
+
+            int deviceId = 5000 + (i % devicesAdded) + 1;
             core.generateMessage(deviceId, towerId, isVoice, isVoice ? "Voice call" : "Data packet");
         }
 
         io.outputstring("\nProcessing messages...\n"); io.terminate();
         core.processMessages();
 
-        // Calculate message breakdown
         int voiceMessages = 0;
         int dataMessages = 0;
         for (int i = 0; i < totalMessages && i < CellularCore::MAX_MESSAGES; ++i) {
-            if (i % 4 == 0) {
-                voiceMessages++;
+            if (choice == 1) {
+                if (i % 4 != 0) {
+                    voiceMessages++;
+                } else {
+                    dataMessages++;
+                }
             } else {
-                dataMessages++;
+                if (i % 4 == 0) {
+                    voiceMessages++;
+                } else {
+                    dataMessages++;
+                }
             }
         }
 
@@ -207,7 +290,7 @@ int main() {
         io.outputstring("  - Voice messages: "); io.outputint(voiceMessages); io.terminate();
         io.outputstring("  - Data messages: "); io.outputint(dataMessages); io.terminate();
         
-        io.outputstring("Devices utilized: "); io.outputint(maxDevices); io.terminate();
+        io.outputstring("Devices utilized: "); io.outputint(devicesAdded); io.terminate();
         io.outputstring("Overhead incurred: "); io.outputint(overheadMessages); io.outputstring(" messages ("); io.outputint(overheadPercent); io.outputstring("%)\n"); io.terminate();
         
         io.outputstring("Channel Statistics:\n"); io.terminate();

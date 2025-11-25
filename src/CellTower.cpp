@@ -12,18 +12,15 @@ CellTower::CellTower(int towerId, const CommunicationProtocol* protocol)
         io.terminate();
         return;
     }
-    // Initialize frequency allocation
     for (int i = 0; i <= MAX_FREQ_KHZ; ++i) {
         frequencyAllocation_[i] = 0;
     }
-    // Initialize device pointers
     for (int i = 0; i < MAX_DEVICES; ++i) {
         devices_[i] = nullptr;
     }
 }
 
 CellTower::~CellTower() {
-    // Delete all allocated devices
     for (int i = 0; i < deviceCount_; ++i) {
         if (devices_[i]) {
             delete devices_[i];
@@ -56,10 +53,8 @@ bool CellTower::allocateFrequency(UserDevice* device) {
         return false;
     }
 
-    // Get available frequencies from protocol
     int channelCount = protocol_->getChannelCount();
     
-    // Find first frequency with available capacity
     for (int i = 0; i < channelCount; ++i) {
         int freq = protocol_->getFrequencyChannel(i);
         if (freq >= 0 && freq <= MAX_FREQ_KHZ && !isFrequencyAtCapacity(freq)) {
@@ -68,8 +63,6 @@ bool CellTower::allocateFrequency(UserDevice* device) {
             return true;
         }
     }
-    
-    // No frequency available - silently return false
     return false;
 }
 
@@ -80,18 +73,15 @@ bool CellTower::addUserDevice(UserDevice* device) {
         return false;
     }
 
-    // Check if max devices exceeded
     if (deviceCount_ >= MAX_DEVICES || deviceCount_ >= protocol_->calculateMaxUsers()) {
         io.outputstring("Error: Tower at capacity: cannot add more devices");
         return false;
     }
 
-    // Allocate frequency
     if (!allocateFrequency(device)) {
         return false;
     }
 
-    // Add device to tower
     devices_[deviceCount_] = device;
     deviceCount_++;
     device->setConnected(true);
@@ -101,16 +91,13 @@ bool CellTower::addUserDevice(UserDevice* device) {
 bool CellTower::removeUserDevice(int deviceId) {
     for (int i = 0; i < deviceCount_; ++i) {
         if (devices_[i] && devices_[i]->getDeviceId() == deviceId) {
-            // Remove from frequency allocation
             int freq = devices_[i]->getAssignedFrequency();
             if (freq >= 0 && freq <= MAX_FREQ_KHZ) {
                 frequencyAllocation_[freq]--;
             }
 
-            // Mark disconnected
             devices_[i]->setConnected(false);
 
-            // Shift remaining devices
             for (int j = i; j < deviceCount_ - 1; ++j) {
                 devices_[j] = devices_[j + 1];
             }
@@ -119,5 +106,5 @@ bool CellTower::removeUserDevice(int deviceId) {
             return true;
         }
     }
-    return false; // Device not found
+    return false;
 }

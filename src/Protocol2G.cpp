@@ -32,6 +32,6 @@ int Protocol2G::calculateMaxUsers() const {
 
 int Protocol2G::calculateOverhead(int totalMessages) const {
     if (totalMessages <= 0) return 0;
-    int overhead = (totalMessages * static_cast<int>(OVERHEAD_PERCENT)) / 100;
+    int overhead = static_cast<int>((totalMessages * OVERHEAD_PERCENT) / 100.0);
     return overhead;
 }

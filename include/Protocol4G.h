@@ -26,8 +26,8 @@ public:
     int getFrequencyChannel(int index) const override;
     int calculateMaxUsers() const override;
     int calculateOverhead(int totalMessages) const override;
-    
-    int calculateRequiredCores() const;
+
+    int calculateRequiredCores() const override;
 };
 
 #endif // PROTOCOL_4G_H
