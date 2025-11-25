@@ -291,6 +291,10 @@ int main() {
         io.outputstring("  - Data messages: "); io.outputint(dataMessages); io.terminate();
         
         io.outputstring("Devices utilized: "); io.outputint(devicesAdded); io.terminate();
+io.terminate();
+        io.outputstring("  - Data messages: "); io.outputint(dataMessages); io.terminate();
+        
+        io.outputstring("Devices utilized: "); io.outputint(maxDevices); io.terminate();
         io.outputstring("Overhead incurred: "); io.outputint(overheadMessages); io.outputstring(" messages ("); io.outputint(overheadPercent); io.outputstring("%)\n"); io.terminate();
         
         io.outputstring("Channel Statistics:\n"); io.terminate();
